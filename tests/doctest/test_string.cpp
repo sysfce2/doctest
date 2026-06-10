@@ -40,7 +40,7 @@ public:
 
 /** Determines the address of the actual string content */
 inline const void *data_address(const String &s) {
-    return reinterpret_cast<const void *>(s.c_str());
+    return reinterpret_cast<const void *>(s.c_str()); // NOLINT
 }
 /**
  * Determines if the String object is on the stack,
@@ -48,7 +48,7 @@ inline const void *data_address(const String &s) {
  * This is mostly to check we're hitting small-string optimizations
  */
 inline bool is_on_stack(const String &s) {
-    return reinterpret_cast<const void *>(&s) == data_address(s);
+    return reinterpret_cast<const void *>(&s) == data_address(s); // NOLINT
 }
 
 /** Convenience alias for !is_on_stack */
@@ -146,6 +146,16 @@ TEST_SUITE("String construction") {
             CHECK(string.capacity() == 25u);
             CHECK(is_on_heap(string));
         }
+    }
+
+    TEST_CASE("Construction from std::string") {
+        auto in = std::string("doctest");
+        auto string = String(in);
+
+        CHECK(string.c_str() == std::string("doctest"));
+        CHECK(string.size() == 7u);
+        CHECK(string.capacity() == 24u);
+        CHECK(is_on_stack(string));
     }
 
     TEST_CASE("Construction from a substring") {
@@ -337,7 +347,7 @@ TEST_SUITE("String construction") {
 TEST_SUITE("String searching") {
     // For some reason, String::npos produces an undefined-reference link error
     // So for these tests, we have to invent our own...
-    const auto npos = String::size_type(-1);
+    const auto npos = static_cast<String::size_type>(-1);
 
     TEST_CASE("Forward-searching") {
         SUBCASE("Empty source string") {

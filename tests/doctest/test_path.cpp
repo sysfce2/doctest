@@ -10,6 +10,7 @@ public:
 
     inline DummyContextOptions() {
         // Safe since this function is backed by g_cs, which is mutable
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
         options = const_cast<doctest::ContextOptions *>(doctest::getContextOptions());
 
         // Retain a copy
@@ -24,7 +25,7 @@ public:
 
 TEST_CASE("Determining basename from path") {
     using doctest::skipPathFromFilename;
-    DummyContextOptions context{};
+    const DummyContextOptions context{};
 
     SUBCASE("With no_path_in_filenames enabled") {
         context.options->no_path_in_filenames = true;

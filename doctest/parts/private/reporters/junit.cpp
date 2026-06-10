@@ -11,8 +11,8 @@ namespace doctest {
 std::string JUnitReporter::JUnitTestCaseData::getCurrentTimestamp() {
     // Beware, this is not reentrant because of backward compatibility issues
     // Also, UTC only, again because of backward compatibility (%z is C++11)
-    time_t rawtime;
-    std::time(&rawtime);
+    time_t rawtime{};
+    static_cast<void>(std::time(&rawtime));
     const auto timeStampSize = sizeof("2017-01-16T17:06:45Z");
 
     std::tm timeInfo;
@@ -27,7 +27,7 @@ std::string JUnitReporter::JUnitTestCaseData::getCurrentTimestamp() {
     char timeStamp[timeStampSize];
     const char *const fmt = "%Y-%m-%dT%H:%M:%SZ";
 
-    std::strftime(timeStamp, timeStampSize, fmt, &timeInfo);
+    static_cast<void>(std::strftime(timeStamp, timeStampSize, fmt, &timeInfo));
     return std::string(timeStamp);
 }
 
@@ -42,7 +42,7 @@ JUnitReporter::JUnitTestCaseData::JUnitTestMessage::JUnitTestMessage(
     : message(_message), type(), details(_details) {}
 
 JUnitReporter::JUnitTestCaseData::JUnitTestCase::JUnitTestCase(const std::string &_classname, const std::string &_name)
-    : classname(_classname), name(_name), time(0), failures() {}
+    : classname(_classname), name(_name), time(0), failures(), errors() {}
 
 void JUnitReporter::JUnitTestCaseData::add(const std::string &classname, const std::string &name) {
     testcases.emplace_back(classname, name);
@@ -90,11 +90,13 @@ void JUnitReporter::test_run_start() {
 
 void JUnitReporter::test_run_end(const TestRunStats &p) {
     // remove .exe extension - mainly to have the same output on UNIX and Windows
+    // NOLINTNEXTLINE(misc-const-correctness)
     std::string binary_name = skipPathFromFilename(opt.binary_name.c_str());
 #ifdef DOCTEST_PLATFORM_WINDOWS
     if (binary_name.rfind(".exe") != std::string::npos)
         binary_name = binary_name.substr(0, binary_name.length() - 4);
 #endif // DOCTEST_PLATFORM_WINDOWS
+
     xml.startElement("testsuites");
     xml.startElement("testsuite")
         .writeAttribute("name", binary_name)
@@ -138,6 +140,7 @@ void JUnitReporter::test_case_start(const TestCaseData &in) {
     DOCTEST_LOCK_MUTEX(mutex)
     testCaseData.add(skipPathFromFilename(in.m_file.c_str()), in.m_name);
     timer.start();
+    tc = &in;
 }
 
 void JUnitReporter::test_case_reenter(const TestCaseData &in) {
@@ -148,13 +151,34 @@ void JUnitReporter::test_case_reenter(const TestCaseData &in) {
 
     timer.start();
     testCaseData.add(skipPathFromFilename(in.m_file.c_str()), in.m_name);
+    tc = &in;
 }
 
-void JUnitReporter::test_case_end(const CurrentTestCaseStats &) {
+void JUnitReporter::test_case_end(const CurrentTestCaseStats &st) {
     DOCTEST_LOCK_MUTEX(mutex)
     testCaseData.addTime(timer.getElapsedSeconds());
     testCaseData.appendSubcaseNamesToLastTestcase(deepestSubcaseStackNames);
     deepestSubcaseStackNames.clear();
+
+    if (st.failure_flags & TestCaseFailureReason::Timeout) {
+        auto *stream = detail::tlssPush();
+        *stream << "Test case exceeded time limit of " << std::setprecision(6) << std::fixed << tc->m_timeout;
+        testCaseData.addError("timeout", detail::tlssPop().c_str());
+    }
+
+    if (st.failure_flags & TestCaseFailureReason::ShouldHaveFailedButDidnt) {
+        testCaseData.addError("should_fail", "Should have failed, but didn't");
+    } else if (st.failure_flags & TestCaseFailureReason::DidntFailExactlyNumTimes) {
+        auto *stream = detail::tlssPush();
+        *stream << "Should have failed exactly " << tc->m_expected_failures << " times, but didn't";
+        testCaseData.addError("should_fail", detail::tlssPop().c_str());
+    }
+
+    if (st.failure_flags & TestCaseFailureReason::TooManyFailedAsserts) {
+        testCaseData.addError("abort_after", "Too many failed asserts");
+    }
+
+    tc = nullptr;
 }
 
 void JUnitReporter::test_case_exception(const TestCaseException &e) {
@@ -205,7 +229,7 @@ void JUnitReporter::log_message(const MessageData &mb) {
 void JUnitReporter::test_case_skipped(const TestCaseData &) {}
 
 void JUnitReporter::log_contexts(std::ostringstream &s) {
-    int num_contexts = get_num_active_contexts();
+    const int num_contexts = get_num_active_contexts();
     if (num_contexts) {
         auto contexts = get_active_contexts();
 

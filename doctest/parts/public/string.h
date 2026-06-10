@@ -13,6 +13,20 @@ namespace doctest {
 #define DOCTEST_CONFIG_STRING_SIZE_TYPE unsigned
 #endif
 
+namespace detail {
+
+template <typename T, typename Enable = void>
+struct is_std_string : types::false_type {};
+
+template <typename T>
+struct is_std_string<
+    T,
+    typename types::enable_if<
+        types::is_same<decltype(declval<const T &>().c_str()), const char *>::value &&
+        types::is_same<decltype(declval<const T &>().size()), size_t>::value>::type> : types::true_type {};
+
+} // namespace detail
+
 // A 24 byte string class (can be as small as 17 for x64 and 13 for x86) that can hold strings
 // with length of up to 23 chars on the stack before going on the heap -
 // the last byte of the buffer is used for:
@@ -56,6 +70,7 @@ private:
     char *allocate(size_type sz);
 
     bool isOnStack() const noexcept {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-union-access)
         return (buf[last] & 128) == 0;
     }
 
@@ -76,6 +91,10 @@ public:
 
     String(std::istream &in, size_type in_size);
 
+    template <typename T, typename detail::types::enable_if<detail::is_std_string<T>::value, bool>::type = true>
+    String(const T &in)
+        : String(in.c_str(), static_cast<size_type>(in.size())) {}
+
     String(const String &other);
     String &operator=(const String &other);
 
@@ -92,12 +111,15 @@ public:
         return const_cast<String *>(this)->c_str(); // NOLINT
     }
 
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-union-access)
     char *c_str() {
         if (isOnStack()) {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             return reinterpret_cast<char *>(buf);
         }
         return data.ptr;
     }
+    // NOLINTEND(cppcoreguidelines-pro-type-union-access)
 
     size_type size() const;
     size_type capacity() const;
@@ -264,8 +286,8 @@ String toString() {
     String::size_type beginPos = ret.find('<');
     return ret.substr(beginPos + 1, ret.size() - beginPos - static_cast<String::size_type>(sizeof(">(void)")));
 #else
-    String ret = __PRETTY_FUNCTION__; // doctest::String toString() [with T = TYPE]
-    String::size_type begin = ret.find('=') + 2;
+    const String ret = __PRETTY_FUNCTION__; // doctest::String toString() [with T = TYPE]
+    const String::size_type begin = ret.find('=') + 2;
     return ret.substr(begin, ret.size() - begin - 1);
 #endif // Compiler
 }
@@ -277,6 +299,7 @@ String toString(const DOCTEST_REF_WRAP(T) value) {
     return StringMaker<T>::convert(value);
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 inline String &&toString(String &&in) {
     return static_cast<String &&>(in);
 }
@@ -379,8 +402,10 @@ struct filldata<T *> {
         filldata<const volatile void *>::fill(
             stream,
 #if DOCTEST_GCC == 0 || DOCTEST_GCC >= DOCTEST_COMPILER(4, 9, 0)
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             reinterpret_cast<const volatile void *>(in)
 #else
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             *reinterpret_cast<const volatile void *const *>(&in)
 #endif // DOCTEST_GCC
         );
