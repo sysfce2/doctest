@@ -43,8 +43,9 @@ jobs:
           lcov -c -d build/ -o coverage/lcov.info --include "*doctest/parts*"
 
       - name: Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
           fail_ci_if_error: true
 
@@ -100,7 +101,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ["windows-2019", "windows-2022"]
+        os: ["windows-2025"]
         compiler: ["cl", "clang", "clang-cl"]
 
         include:
@@ -259,7 +260,7 @@ jobs:
             compiler: xcode
             version: "16.3" # Apple Clang 17.0.0
 
-          - os: macos-15
+          - os: macos-14
             compiler: gcc
             version: "12"
 
@@ -294,6 +295,12 @@ jobs:
           if [ "${{ matrix.compiler }}" = "gcc" ]; then
             sudo apt-get install -y g++-${{ matrix.version }} g++-${{ matrix.version }}-multilib
           elif [ "${{ matrix.compiler }}" = "clang" ]; then
+            # clang-17 does not automatically provide the i386 sanitizer runtimes,
+            # but libclang-rt-V-dev:i386 does not always exist. This is the best intermediate option
+            if [ "${{ matrix.version }}" = "17" ]; then
+              sudo apt-get install -y libclang-rt-${{ matrix.version }}-dev:i386
+            fi
+
             sudo apt-get install -y clang-${{ matrix.version }} libclang-${{ matrix.version }}-dev llvm-${{ matrix.version }}-dev g++-multilib
           fi
 
@@ -327,7 +334,7 @@ jobs:
             sudo xcode-select --switch /Applications/Xcode_${{ matrix.version }}.app
           fi
 
-          if [ "${{ matrix.os}}" = "macos-15" -a "${{ matrix.compiler }}" = "gcc" ]; then
+          if [ "${{ matrix.os}}" = "macos-14" -a "${{ matrix.compiler }}" = "gcc" ]; then
             sudo xcode-select --switch /Applications/Xcode_15.4.app
           fi
 
@@ -368,7 +375,7 @@ jobs:
             python3 .github/workflows/build_and_test.py ${{ runner.os }} x86 ${{ matrix.compiler }} ${{ matrix.version }}
         run: docker exec build-container bash -c "$CMD"
 
-  ci-min-gw:
+  ci-mingw-w64:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: windows-latest
 
@@ -380,8 +387,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Set up MinGW
+      - name: Set up MinGW-w64
         uses: egor-tensin/setup-mingw@v2
+        with:
+          version: 12.2.0
 
       - name: Generate
         run: cmake -B build -S . -G "MinGW Makefiles" -D CMAKE_BUILD_TYPE=${{ matrix.configuration }}
@@ -394,12 +403,12 @@ jobs:
 
   ci-msvs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-    runs-on: ${{ matrix.toolset == 'v143' && 'windows-2022' || 'windows-2019' }}
+    runs-on:  "windows-2025"
 
     strategy:
       fail-fast: false
       matrix:
-        toolset: ["v140", "v141", "v142", "v143", "ClangCl"]
+        toolset: ["v142", "v143"]
         architecture: ["Win32", "x64"]
         configuration: ["Debug", "Release"]
 
@@ -408,7 +417,7 @@ jobs:
 
       - name: Generate
         run:
-          cmake -B build -S . -G "${{ matrix.toolset == 'v143' && 'Visual Studio 17 2022' || 'Visual Studio 16 2019' }}" \
+          cmake -B build -S . -G "Visual Studio 17 2022" \
           -A ${{ matrix.architecture }} -T ${{ matrix.toolset }}
 
       - name: Build
