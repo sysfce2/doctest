@@ -144,7 +144,7 @@ TEST_CASE_TEMPLATE("Verification of relational operators", T, float, double, lon
     // clang-format on
 }
 
-TEST_CASE("Comparison with finite floating-point values" * doctest::expected_failures(2)) {
+TEST_CASE("Comparison with finite floating-point values" * doctest::expected_failures(1)) {
     const auto epsilon = std::numeric_limits<double>::epsilon();
     const auto inf = std::numeric_limits<double>::infinity();
 
@@ -171,7 +171,6 @@ TEST_CASE("Comparison with finite floating-point values" * doctest::expected_fai
 
     SUBCASE("Matcher focused around 0 with an error of 100% and no scaling") {
         const auto m = Approx(0.0).epsilon(1.0).scale(0);
-        CAPTURE(bounds::determine(m)); // [lowest, max]
 
         CHECK(-epsilon == m);
         CHECK(     0.0 == m);
@@ -232,9 +231,8 @@ TEST_CASE("Comparison with finite floating-point values" * doctest::expected_fai
 
     SUBCASE("Matcher focused around 100 with an error of 100% and no scaling") {
         const auto m = Approx(100.0).epsilon(1.0).scale(0);
-        CAPTURE(bounds::determine(m)); // [0, inf]
 
-        CHECK(  0.0 != m);
+        CHECK(  0.0 == m);
         CHECK(1e-14 == m);
         CHECK(100.0 == m);
         CHECK(1e+18 == m);
@@ -312,6 +310,30 @@ TEST_CASE("Comparison with non-finite floating-point values") {
         CHECK_FALSE(snan >  m);
         CHECK_FALSE(snan >= m);
         // clang-format on
+    }
+}
+
+TEST_CASE("epsilon >= 1 matches any finite value") {
+    SUBCASE("epsilon = 1 with expected value 0") {
+        const auto m = Approx(0.0).epsilon(1.0);
+        CHECK(-1.0 == m);
+        CHECK(0.0 == m);
+        CHECK(1.0 == m);
+        CHECK(std::numeric_limits<double>::infinity() == m);
+    }
+
+    SUBCASE("epsilon = 1 with positive expected value") {
+        const auto m = Approx(100.0).epsilon(1.0);
+        CHECK(-50.0 == m);
+        CHECK(100.0 == m);
+        CHECK(250.0 == m);
+    }
+
+    SUBCASE("NaN is never equal") {
+        const auto qnan = std::numeric_limits<double>::quiet_NaN();
+        const auto m = Approx(0.0).epsilon(1.0);
+        CHECK_FALSE(qnan == m);
+        CHECK_FALSE(m == qnan);
     }
 }
 

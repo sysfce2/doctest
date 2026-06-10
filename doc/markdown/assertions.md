@@ -238,6 +238,8 @@ Or tune `epsilon()` together with `scale(0)` so `epsilon * max(|lhs|, |value|)` 
 CHECK(lhs == doctest::Approx(rhs).epsilon(1e-12).scale(0));
 ```
 
+An epsilon of `1.0` or greater is treated as accepting any finite value (comparisons involving NaN still fail). Values in `[0, 1)` use the relative tolerance formula above.
+
 ## NaN checking
 
 Two NaN floating point numbers do not compare equal to each other. This makes it quite inconvenient to check for NaN
