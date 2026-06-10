@@ -232,7 +232,7 @@ in only one source file.
 
 ### Why is doctest using macros?
 
-Aren't they evil and not *modern*? - Check out the answer Phil Nash gives to this question [**here**](https://accu.org/journals/2064)
+Aren't they evil and not *modern*? - Check out the answer Phil Nash gives to this question [**here**](https://accu.org/journals/2064/)
 (the creator of [**Catch**](https://github.com/catchorg/Catch2)).
 
 ### How to use with multiple files?
