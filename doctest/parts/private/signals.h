@@ -1,8 +1,16 @@
 #ifndef DOCTEST_PARTS_PRIVATE_SIGNALS
 #define DOCTEST_PARTS_PRIVATE_SIGNALS
 
-#include "doctest/parts/private/prelude.h"
-#include "doctest/parts/private/assert/handler.h"
+#include "doctest/parts/public/config.h"
+
+#if defined(DOCTEST_CONFIG_POSIX_SIGNALS) || defined(DOCTEST_CONFIG_WINDOWS_SEH)
+#include "doctest/parts/private/ext/windows.h" // IWYU pragma: keep
+#ifndef DOCTEST_PLATFORM_WINDOWS
+#include <csignal>
+#endif
+#endif
+
+#include <string>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -19,7 +27,13 @@ struct FatalConditionHandler {
 };
 #else // DOCTEST_CONFIG_POSIX_SIGNALS || DOCTEST_CONFIG_WINDOWS_SEH
 
+void reportFatal(const std::string &message);
+
 #ifdef DOCTEST_PLATFORM_WINDOWS
+
+#ifndef DOCTEST_CDECL
+#define DOCTEST_CDECL __cdecl
+#endif
 
 struct SignalDefs {
     DWORD id;

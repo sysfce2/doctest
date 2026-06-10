@@ -1,5 +1,15 @@
-#include "doctest/parts/private/prelude.h"
 #include "doctest/parts/private/context_state.h"
+#include "doctest/parts/private/ext/windows.h" // IWYU pragma: keep
+#include "doctest/parts/public/color.h"
+
+#include <cstdio>
+#include <ostream>
+
+#ifdef DOCTEST_PLATFORM_WINDOWS
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -12,6 +22,12 @@ DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 #endif // platform
 #endif // DOCTEST_CONFIG_COLORS_WINDOWS && DOCTEST_CONFIG_COLORS_ANSI
 #endif // DOCTEST_CONFIG_COLORS_NONE
+
+// this is a fix for https://github.com/doctest/doctest/issues/348
+// https://mail.gnome.org/archives/xml/2012-January/msg00000.html
+#if !defined(HAVE_UNISTD_H) && !defined(STDOUT_FILENO)
+#define STDOUT_FILENO fileno(stdout)
+#endif // HAVE_UNISTD_H
 
 namespace doctest {
 

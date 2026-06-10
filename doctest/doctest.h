@@ -256,7 +256,6 @@
     DOCTEST_CLANG_SUPPRESS_WARNING("-Wmissing-field-initializers")                                                     \
     DOCTEST_CLANG_SUPPRESS_WARNING("-Wunused-member-function")                                                         \
     DOCTEST_CLANG_SUPPRESS_WARNING("-Wunused-function")                                                                \
-    DOCTEST_CLANG_SUPPRESS_WARNING("-Wnonportable-system-include-path")                                                \
     DOCTEST_CLANG_SUPPRESS_WARNING("-Wnrvo")                                                                           \
                                                                                                                        \
     DOCTEST_GCC_SUPPRESS_WARNING("-Wconversion")                                                                       \
@@ -283,29 +282,6 @@
     DOCTEST_MSVC_SUPPRESS_WARNING(5245) /* unreferenced function with internal linkage removed */
 
 #define DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP DOCTEST_SUPPRESS_COMMON_WARNINGS_POP
-
-#define DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_BEGIN                                                     \
-    DOCTEST_MSVC_SUPPRESS_WARNING_PUSH                                                                                 \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4548) /* before comma no effect; expected side - effect */                           \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4265) /* virtual functions, but destructor is not virtual */                         \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4986) /* exception specification does not match previous */                          \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4350) /* 'member1' called instead of 'member2' */                                    \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4668) /* not defined as a preprocessor macro */                                      \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4365) /* signed/unsigned mismatch */                                                 \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4774) /* format string not a string literal */                                       \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4820) /* padding */                                                                  \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4625) /* copy constructor was implicitly deleted */                                  \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4626) /* assignment operator was implicitly deleted */                               \
-    DOCTEST_MSVC_SUPPRESS_WARNING(5027) /* move assignment operator implicitly deleted */                              \
-    DOCTEST_MSVC_SUPPRESS_WARNING(5026) /* move constructor was implicitly deleted */                                  \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4623) /* default constructor was implicitly deleted */                               \
-    DOCTEST_MSVC_SUPPRESS_WARNING(5039) /* pointer to pot. throwing function passed to extern C */                     \
-    DOCTEST_MSVC_SUPPRESS_WARNING(5045) /* Spectre mitigation for memory load */                                       \
-    DOCTEST_MSVC_SUPPRESS_WARNING(5105) /* macro producing 'defined' has undefined behavior */                         \
-    DOCTEST_MSVC_SUPPRESS_WARNING(4738) /* storing float result in memory, loss of performance */                      \
-    DOCTEST_MSVC_SUPPRESS_WARNING(5262) /* implicit fall-through */
-
-#define DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_END DOCTEST_MSVC_SUPPRESS_WARNING_POP
 
 #endif // DOCTEST_PARTS_PUBLIC_WARNINGS
 
@@ -345,6 +321,8 @@ DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 
 #endif // DOCTEST_PARTS_PUBLIC_PLATFORM
 
+DOCTEST_CLANG_SUPPRESS_WARNING_WITH_PUSH("-Wunused-macros")
+
 // general compiler feature support table: https://en.cppreference.com/w/cpp/compiler_support
 // MSVC C++11 feature support table: https://msdn.microsoft.com/en-us/library/hh567368.aspx
 // GCC C++11 feature support table: https://gcc.gnu.org/projects/cxx-status.html
@@ -362,14 +340,19 @@ DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 
 // Universal Windows Platform support
 #if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
+#ifndef DOCTEST_CONFIG_NO_WINDOWS_SEH
 #define DOCTEST_CONFIG_NO_WINDOWS_SEH
-#endif // WINAPI_FAMILY
+#endif
+#ifndef DOCTEST_CONFIG_NO_MULTI_LANE_ATOMICS
+#define DOCTEST_CONFIG_NO_MULTI_LANE_ATOMICS
+#endif
+#endif // defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
 #if DOCTEST_MSVC && !defined(DOCTEST_CONFIG_WINDOWS_SEH)
 #define DOCTEST_CONFIG_WINDOWS_SEH
-#endif // MSVC
+#endif // DOCTEST_MSVC && !defined(DOCTEST_CONFIG_WINDOWS_SEH)
 #if defined(DOCTEST_CONFIG_NO_WINDOWS_SEH) && defined(DOCTEST_CONFIG_WINDOWS_SEH)
 #undef DOCTEST_CONFIG_WINDOWS_SEH
-#endif // DOCTEST_CONFIG_NO_WINDOWS_SEH
+#endif // defined(DOCTEST_CONFIG_NO_WINDOWS_SEH) && defined(DOCTEST_CONFIG_WINDOWS_SEH)
 
 #if !defined(_WIN32) && !defined(__QNX__) && !defined(DOCTEST_CONFIG_POSIX_SIGNALS) && !defined(__EMSCRIPTEN__) &&     \
     !defined(__wasi__)
@@ -395,7 +378,7 @@ DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 #define DOCTEST_CONFIG_NO_TRY_CATCH_IN_ASSERTS
 #endif // DOCTEST_CONFIG_NO_EXCEPTIONS && !DOCTEST_CONFIG_NO_TRY_CATCH_IN_ASSERTS
 
-#ifdef __wasi__
+#if !defined(DOCTEST_CONFIG_NO_MULTITHREADING) && defined(__wasi__)
 #define DOCTEST_CONFIG_NO_MULTITHREADING
 #endif
 
@@ -452,6 +435,14 @@ DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 #define DOCTEST_ALIGNMENT(x) __attribute__((aligned(x)))
 #endif
 
+#ifndef DOCTEST_THREAD_LOCAL
+#if defined(DOCTEST_CONFIG_NO_MULTITHREADING) || DOCTEST_MSVC && (DOCTEST_MSVC < DOCTEST_COMPILER(19, 0, 0))
+#define DOCTEST_THREAD_LOCAL
+#else
+#define DOCTEST_THREAD_LOCAL thread_local
+#endif
+#endif
+
 #ifdef DOCTEST_CONFIG_NO_CONTRADICTING_INLINE
 #define DOCTEST_INLINE_NOINLINE inline
 #else
@@ -505,13 +496,11 @@ DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 // https://github.com/doctest/doctest/issues/126
 // https://github.com/doctest/doctest/issues/356
 #if DOCTEST_CLANG
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_BEGIN
 #if DOCTEST_CPLUSPLUS >= 201703L && __has_include(<version>)
 #include <version>
 #else
 #include <ciso646>
 #endif
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_END
 #endif // clang
 
 #ifdef _LIBCPP_VERSION
@@ -531,6 +520,14 @@ DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_END
 #else
 #define DOCTEST_HAS_BUILTIN(x) 0
 #endif // __has_builtin
+
+#ifdef DOCTEST_CONFIG_DISABLE
+#define DOCTEST_BRANCH_ON_DISABLED(if_disabled, if_not_disabled) if_disabled
+#else
+#define DOCTEST_BRANCH_ON_DISABLED(if_disabled, if_not_disabled) if_not_disabled
+#endif
+
+DOCTEST_CLANG_SUPPRESS_WARNING_POP
 
 #endif // DOCTEST_PARTS_PUBLIC_CONFIG
 
@@ -589,6 +586,9 @@ DOCTEST_CLANG_SUPPRESS_WARNING_POP
     static const int var = doctest::detail::consume(&var, __VA_ARGS__);                                                \
     DOCTEST_CLANG_SUPPRESS_WARNING_POP
 
+// counts the number of elements in a C array
+#define DOCTEST_COUNTOF(x) (sizeof(x) / sizeof(x[0]))
+
 DOCTEST_SUPPRESS_PUBLIC_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PUBLIC_UTILITY
@@ -607,9 +607,7 @@ DOCTEST_SUPPRESS_PUBLIC_WARNINGS_POP
 // Break at the location of the failing check if possible
 #define DOCTEST_BREAK_INTO_DEBUGGER() __asm__("int $3\n" ::) // NOLINT(hicpp-no-assembler)
 #else
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_BEGIN
 #include <signal.h>
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_END
 #define DOCTEST_BREAK_INTO_DEBUGGER() raise(SIGTRAP)
 #endif
 
@@ -655,15 +653,14 @@ DOCTEST_INTERFACE bool isDebuggerActive();
 DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 
 #ifdef DOCTEST_CONFIG_USE_STD_HEADERS
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_BEGIN
 #include <cstddef>
 #include <ostream>
 #include <istream>
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_END
 #else // DOCTEST_CONFIG_USE_STD_HEADERS
 
-// Forward declaring 'X' in namespace std is not permitted by the C++ Standard.
-DOCTEST_MSVC_SUPPRESS_WARNING_WITH_PUSH(4643)
+DOCTEST_MSVC_SUPPRESS_WARNING_PUSH
+DOCTEST_MSVC_SUPPRESS_WARNING(4643) // Forward declaring 'X' in namespace std is not permitted by the C++ Standard.
+DOCTEST_MSVC_SUPPRESS_WARNING(5285) // Cannot declare a specialization for 'template name': template argument.
 
 // NOLINTBEGIN(bugprone-std-namespace-modification, cert-dcl58-cpp)
 namespace std {
@@ -713,9 +710,7 @@ DOCTEST_SUPPRESS_PUBLIC_WARNINGS_POP
 DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 
 #ifdef DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_BEGIN
 #include <type_traits>
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_END
 #endif // DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 
 namespace doctest {
@@ -3899,198 +3894,31 @@ DOCTEST_CLANG_SUPPRESS_WARNING_WITH_PUSH("-Wunused-macros")
 #define DOCTEST_LIBRARY_IMPLEMENTATION
 DOCTEST_CLANG_SUPPRESS_WARNING_POP
 
-#ifndef DOCTEST_PARTS_PRIVATE_PRELUDE
-#define DOCTEST_PARTS_PRIVATE_PRELUDE
-
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
-
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_BEGIN
-
-// required includes - will go only in one translation unit!
-#include <ctime>
-#include <cmath>
-#include <climits>
-// borland (Embarcadero) compiler requires math.h and not cmath -
-// https://github.com/doctest/doctest/pull/37
-#ifdef __BORLANDC__
-#include <math.h>
-#endif // __BORLANDC__
-#include <new>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <limits>
-#include <utility>
-#include <fstream>
-#include <sstream>
-#ifndef DOCTEST_CONFIG_NO_INCLUDE_IOSTREAM
-#include <iostream>
-#endif // DOCTEST_CONFIG_NO_INCLUDE_IOSTREAM
-#include <algorithm>
-#include <iomanip>
-#include <vector>
-#ifndef DOCTEST_CONFIG_NO_MULTITHREADING
-#include <atomic>
-#include <mutex>
-#define DOCTEST_DECLARE_MUTEX(name) std::mutex name;
-#define DOCTEST_DECLARE_STATIC_MUTEX(name) static DOCTEST_DECLARE_MUTEX(name)
-#define DOCTEST_LOCK_MUTEX(name) const std::lock_guard<std::mutex> DOCTEST_ANONYMOUS(DOCTEST_ANON_LOCK_)(name);
-#else // DOCTEST_CONFIG_NO_MULTITHREADING
-#define DOCTEST_DECLARE_MUTEX(name)
-#define DOCTEST_DECLARE_STATIC_MUTEX(name)
-#define DOCTEST_LOCK_MUTEX(name)
-#endif // DOCTEST_CONFIG_NO_MULTITHREADING
-#include <set>
-#include <map>
-#include <unordered_set>
-#include <exception>
-#include <stdexcept>
-#if defined(DOCTEST_CONFIG_POSIX_SIGNALS) || defined(DOCTEST_CONFIG_WINDOWS_SEH)
-#include <csignal>
-#endif // DOCTEST_CONFIG_POSIX_SIGNALS
-#include <cfloat>
-#include <cctype>
-#include <cstdint>
-#include <string>
-
-#ifdef DOCTEST_PLATFORM_MAC
-#include <sys/types.h>
-#include <unistd.h>
-#include <sys/sysctl.h>
-#endif // DOCTEST_PLATFORM_MAC
-
-#ifdef DOCTEST_PLATFORM_WINDOWS
-
-// defines for a leaner windows.h
-#ifndef WIN32_LEAN_AND_MEAN
-//#define WIN32_LEAN_AND_MEAN
-#define DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
-#endif // WIN32_LEAN_AND_MEAN
-#ifndef NOMINMAX
-#define NOMINMAX
-#define DOCTEST_UNDEF_NOMINMAX
-#endif // NOMINMAX
-
-// not sure what AfxWin.h is for - here I do what Catch does
-#ifdef __AFXDLL
-#include <AfxWin.h>
-#else
-#include <windows.h>
-#endif
-#include <io.h>
-
-#ifdef DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
-#undef WIN32_LEAN_AND_MEAN
-#undef DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
-#endif // DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
-#ifdef DOCTEST_UNDEF_NOMINMAX
-#undef NOMINMAX
-#undef DOCTEST_UNDEF_NOMINMAX
-#endif // DOCTEST_UNDEF_NOMINMAX
-
-#else // DOCTEST_PLATFORM_WINDOWS
-
-#include <sys/time.h>
-#include <unistd.h>
-
-#endif // DOCTEST_PLATFORM_WINDOWS
-
-// this is a fix for https://github.com/doctest/doctest/issues/348
-// https://mail.gnome.org/archives/xml/2012-January/msg00000.html
-#if !defined(HAVE_UNISTD_H) && !defined(STDOUT_FILENO)
-#define STDOUT_FILENO fileno(stdout)
-#endif // HAVE_UNISTD_H
-
-DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_END
-
-// counts the number of elements in a C array
-#define DOCTEST_COUNTOF(x) (sizeof(x) / sizeof(x[0]))
-
-#ifdef DOCTEST_CONFIG_DISABLE
-#define DOCTEST_BRANCH_ON_DISABLED(if_disabled, if_not_disabled) if_disabled
-#else // DOCTEST_CONFIG_DISABLE
-#define DOCTEST_BRANCH_ON_DISABLED(if_disabled, if_not_disabled) if_not_disabled
-#endif // DOCTEST_CONFIG_DISABLE
-
-#ifndef DOCTEST_THREAD_LOCAL
-#if defined(DOCTEST_CONFIG_NO_MULTITHREADING) || DOCTEST_MSVC && (DOCTEST_MSVC < DOCTEST_COMPILER(19, 0, 0))
-#define DOCTEST_THREAD_LOCAL
-#else // DOCTEST_MSVC
-#define DOCTEST_THREAD_LOCAL thread_local
-#endif // DOCTEST_MSVC
-#endif // DOCTEST_THREAD_LOCAL
-
-#ifndef DOCTEST_MULTI_LANE_ATOMICS_THREAD_LANES
-#define DOCTEST_MULTI_LANE_ATOMICS_THREAD_LANES 32
-#endif
-
-#ifndef DOCTEST_MULTI_LANE_ATOMICS_CACHE_LINE_SIZE
-#define DOCTEST_MULTI_LANE_ATOMICS_CACHE_LINE_SIZE 64
-#endif
-
-#if defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
-#define DOCTEST_CONFIG_NO_MULTI_LANE_ATOMICS
-#endif
-
-#ifndef DOCTEST_CDECL
-#define DOCTEST_CDECL __cdecl
-#endif
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
-
-#endif // DOCTEST_PARTS_PRIVATE_PRELUDE
 #ifndef DOCTEST_PARTS_PRIVATE_CONTEXT_STATE
 #define DOCTEST_PARTS_PRIVATE_CONTEXT_STATE
 
-#ifndef DOCTEST_PARTS_PRIVATE_TIMER
-#define DOCTEST_PARTS_PRIVATE_TIMER
-
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
-
-#ifndef DOCTEST_CONFIG_DISABLE
-
-namespace doctest {
-namespace detail {
-
-namespace timer_large_integer {
-
-#if defined(DOCTEST_PLATFORM_WINDOWS)
-using type = ULONGLONG;
-#else  // DOCTEST_PLATFORM_WINDOWS
-using type = std::uint64_t;
-#endif // DOCTEST_PLATFORM_WINDOWS
-} // namespace timer_large_integer
-
-using ticks_t = timer_large_integer::type;
-
-ticks_t getCurrentTicks();
-
-struct Timer {
-    void start();
-    unsigned int getElapsedMicroseconds() const;
-    double getElapsedSeconds() const;
-
-private:
-    ticks_t m_ticks = 0;
-};
-
-} // namespace detail
-} // namespace doctest
-
-#endif // DOCTEST_CONFIG_DISABLE
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
-
-#endif // DOCTEST_PARTS_PRIVATE_TIMER
 #ifndef DOCTEST_PARTS_PRIVATE_ATOMIC
 #define DOCTEST_PARTS_PRIVATE_ATOMIC
 
 
+#ifndef DOCTEST_CONFIG_NO_MULTITHREADING
+#include <atomic>
+#include <mutex> // IWYU pragma: keep (DOCTEST_DECLARE_MUTEX)
+#endif
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
+
+#ifndef DOCTEST_CONFIG_NO_MULTITHREADING
+#define DOCTEST_DECLARE_MUTEX(name) std::mutex name;
+#define DOCTEST_DECLARE_STATIC_MUTEX(name) static DOCTEST_DECLARE_MUTEX(name)
+#define DOCTEST_LOCK_MUTEX(name) std::lock_guard<std::mutex> DOCTEST_ANONYMOUS(DOCTEST_ANON_LOCK_)(name);
+#else
+#define DOCTEST_DECLARE_MUTEX(name)
+#define DOCTEST_DECLARE_STATIC_MUTEX(name)
+#define DOCTEST_LOCK_MUTEX(name)
+#endif
 
 namespace doctest {
 namespace detail {
@@ -4106,7 +3934,16 @@ using Atomic = std::atomic<T>;
 #if defined(DOCTEST_CONFIG_NO_MULTI_LANE_ATOMICS) || defined(DOCTEST_CONFIG_NO_MULTITHREADING)
 template <typename T>
 using MultiLaneAtomic = Atomic<T>;
-#else  // DOCTEST_CONFIG_NO_MULTI_LANE_ATOMICS
+#else
+
+#ifndef DOCTEST_MULTI_LANE_ATOMICS_THREAD_LANES
+#define DOCTEST_MULTI_LANE_ATOMICS_THREAD_LANES 32
+#endif
+
+#ifndef DOCTEST_MULTI_LANE_ATOMICS_CACHE_LINE_SIZE
+#define DOCTEST_MULTI_LANE_ATOMICS_CACHE_LINE_SIZE 64
+#endif
+
 // Provides a multilane implementation of an atomic variable that supports add, sub, load,
 // store. Instead of using a single atomic variable, this splits up into multiple ones,
 // each sitting on a separate cache line. The goal is to provide a speedup when most
@@ -4193,7 +4030,7 @@ private:
         return m_atomics[tlsLaneIdx].atomic;
     }
 };
-#endif // DOCTEST_CONFIG_NO_MULTI_LANE_ATOMICS
+#endif // defined(DOCTEST_CONFIG_NO_MULTI_LANE_ATOMICS) || defined(DOCTEST_CONFIG_NO_MULTITHREADING)
 
 } // namespace detail
 } // namespace doctest
@@ -4203,9 +4040,43 @@ private:
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PRIVATE_ATOMIC
+#ifndef DOCTEST_PARTS_PRIVATE_TIMER
+#define DOCTEST_PARTS_PRIVATE_TIMER
+
+
+#include <cstdint>
+
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
+
+#ifndef DOCTEST_CONFIG_DISABLE
+
+namespace doctest {
+namespace detail {
+
+uint64_t getCurrentTicks();
+
+struct Timer {
+    void start();
+    unsigned int getElapsedMicroseconds() const;
+    double getElapsedSeconds() const;
+
+private:
+    uint64_t m_ticks = 0;
+};
+
+} // namespace detail
+} // namespace doctest
+
+#endif // DOCTEST_CONFIG_DISABLE
+
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#endif // DOCTEST_PARTS_PRIVATE_TIMER
 #ifndef DOCTEST_PARTS_PRIVATE_TRAVERSAL
 #define DOCTEST_PARTS_PRIVATE_TRAVERSAL
 
+
+#include <vector>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -4255,6 +4126,8 @@ private:
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PRIVATE_TRAVERSAL
+
+#include <vector>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -4357,35 +4230,6 @@ ExpressionDecomposer::ExpressionDecomposer(assertType::Enum at)
 #endif // DOCTEST_CONFIG_DISABLE
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
-#ifndef DOCTEST_PARTS_PRIVATE_REPORTER
-#define DOCTEST_PARTS_PRIVATE_REPORTER
-
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
-
-#ifndef DOCTEST_CONFIG_DISABLE
-
-namespace doctest {
-namespace detail {
-// the int (priority) is part of the key for automatic sorting - sadly one can register a
-// reporter with a duplicate name and a different priority but hopefully that won't happen often :|
-using reporterMap = std::map<std::pair<int, String>, detail::reporterCreatorFunc>;
-
-reporterMap &getReporters() noexcept;
-reporterMap &getListeners() noexcept;
-} // namespace detail
-
-#define DOCTEST_ITERATE_THROUGH_REPORTERS(function, ...)                                                               \
-    for (auto &curr_rep: g_cs->reporters_currently_used)                                                               \
-    curr_rep->function(__VA_ARGS__)
-
-} // namespace doctest
-
-#endif // DOCTEST_CONFIG_DISABLE
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
-
-#endif // DOCTEST_PARTS_PRIVATE_REPORTER
 #ifndef DOCTEST_PARTS_PRIVATE_ASSERT_HANDLER
 #define DOCTEST_PARTS_PRIVATE_ASSERT_HANDLER
 
@@ -4401,10 +4245,6 @@ void addAssert(assertType::Enum at);
 
 void addFailedAssert(assertType::Enum at);
 
-#if defined(DOCTEST_CONFIG_POSIX_SIGNALS) || defined(DOCTEST_CONFIG_WINDOWS_SEH)
-void reportFatal(const std::string &message);
-#endif // DOCTEST_CONFIG_POSIX_SIGNALS || DOCTEST_CONFIG_WINDOWS_SEH
-
 } // namespace detail
 } // namespace doctest
 
@@ -4413,6 +4253,8 @@ void reportFatal(const std::string &message);
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PRIVATE_ASSERT_HANDLER
+
+#include <cstdlib>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -4430,22 +4272,6 @@ void addFailedAssert(assertType::Enum at) {
     if ((at & assertType::is_warn) == 0)
         g_cs->numAssertsFailedCurrentTest_atomic++;
 }
-
-#if defined(DOCTEST_CONFIG_POSIX_SIGNALS) || defined(DOCTEST_CONFIG_WINDOWS_SEH)
-void reportFatal(const std::string &message) {
-    g_cs->failure_flags |= TestCaseFailureReason::Crash;
-
-    DOCTEST_ITERATE_THROUGH_REPORTERS(test_case_exception, {message.c_str(), true});
-
-    for (size_t i = g_cs->traversal.unwindActiveSubcases(); i > 0; --i)
-        DOCTEST_ITERATE_THROUGH_REPORTERS(subcase_end, DOCTEST_EMPTY);
-    g_cs->finalizeTestCaseData();
-
-    DOCTEST_ITERATE_THROUGH_REPORTERS(test_case_end, *g_cs);
-
-    DOCTEST_ITERATE_THROUGH_REPORTERS(test_run_end, *g_cs);
-}
-#endif // DOCTEST_CONFIG_POSIX_SIGNALS || DOCTEST_CONFIG_WINDOWS_SEH
 
 void failed_out_of_a_testing_context(const AssertData &ad) {
     if (g_cs->ah)
@@ -4472,6 +4298,37 @@ bool decomp_assert(assertType::Enum at, const char *file, int line, const char *
 #endif // DOCTEST_CONFIG_DISABLE
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+#ifndef DOCTEST_PARTS_PRIVATE_REPORTER
+#define DOCTEST_PARTS_PRIVATE_REPORTER
+
+
+#include <map>
+
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
+
+#ifndef DOCTEST_CONFIG_DISABLE
+
+namespace doctest {
+namespace detail {
+// the int (priority) is part of the key for automatic sorting - sadly one can register a
+// reporter with a duplicate name and a different priority but hopefully that won't happen often :|
+using reporterMap = std::map<std::pair<int, String>, detail::reporterCreatorFunc>;
+
+reporterMap &getReporters() noexcept;
+reporterMap &getListeners() noexcept;
+} // namespace detail
+
+#define DOCTEST_ITERATE_THROUGH_REPORTERS(function, ...)                                                               \
+    for (auto &curr_rep: g_cs->reporters_currently_used)                                                               \
+    curr_rep->function(__VA_ARGS__)
+
+} // namespace doctest
+
+#endif // DOCTEST_CONFIG_DISABLE
+
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#endif // DOCTEST_PARTS_PRIVATE_REPORTER
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -4526,6 +4383,8 @@ DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 #ifndef DOCTEST_PARTS_PRIVATE_EXCEPTION_TRANSLATOR
 #define DOCTEST_PARTS_PRIVATE_EXCEPTION_TRANSLATOR
 
+
+#include <vector>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -4632,6 +4491,15 @@ DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 #define DOCTEST_PARTS_PRIVATE_EXCEPTIONS
 
 
+#include <stdexcept> // IWYU pragma: keep (DOCTEST_INTERNAL_ERROR)
+
+#if defined(DOCTEST_CONFIG_NO_EXCEPTIONS) && !defined(DOCTEST_CONFIG_HANDLE_EXCEPTION)
+#include <exception>
+#ifndef DOCTEST_CONFIG_NO_INCLUDE_IOSTREAM
+#include <iostream>
+#endif
+#endif
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 namespace doctest {
@@ -4729,6 +4597,76 @@ const char *failureString(assertType::Enum at) {
 } // namespace doctest
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+#ifndef DOCTEST_PARTS_PRIVATE_EXT_WINDOWS
+#define DOCTEST_PARTS_PRIVATE_EXT_WINDOWS
+
+
+// TODO: This wrapper should really be applied at the call site, but there's a bug in our Codecov
+//  setup causing conditional guards around includes to conflict with `--remap`.
+#ifdef DOCTEST_PLATFORM_WINDOWS
+
+// Internal windows headers require explicit supressions to handle `-weverything`.
+DOCTEST_CLANG_SUPPRESS_WARNING_WITH_PUSH("-Wnonportable-system-include-path")
+DOCTEST_MSVC_SUPPRESS_WARNING_PUSH
+DOCTEST_MSVC_SUPPRESS_WARNING(4265) // virtual functions, but destructor is not virtual
+DOCTEST_MSVC_SUPPRESS_WARNING(4350) // 'member1' called instead of 'member2'
+DOCTEST_MSVC_SUPPRESS_WARNING(4548) // before comma no effect; expected side - effect
+DOCTEST_MSVC_SUPPRESS_WARNING(4623) // default constructor was implicitly deleted
+DOCTEST_MSVC_SUPPRESS_WARNING(4625) // copy constructor was implicitly deleted
+DOCTEST_MSVC_SUPPRESS_WARNING(4626) // assignment operator was implicitly deleted
+DOCTEST_MSVC_SUPPRESS_WARNING(4668) // not defined as a preprocessor macro
+DOCTEST_MSVC_SUPPRESS_WARNING(4774) // format string not a string literal
+DOCTEST_MSVC_SUPPRESS_WARNING(4820) // padding
+DOCTEST_MSVC_SUPPRESS_WARNING(4865) // the underlying type will change if '/Zc:enumTypes' is passed
+DOCTEST_MSVC_SUPPRESS_WARNING(4986) // exception specification does not match previous
+DOCTEST_MSVC_SUPPRESS_WARNING(5026) // move constructor was implicitly deleted
+DOCTEST_MSVC_SUPPRESS_WARNING(5027) // move assignment operator implicitly deleted
+DOCTEST_MSVC_SUPPRESS_WARNING(5039) // pointer to pot. throwing function passed to extern C
+DOCTEST_MSVC_SUPPRESS_WARNING(5045) // Spectre mitigation for memory load
+DOCTEST_MSVC_SUPPRESS_WARNING(5105) // macro producing 'defined' has undefined behavior
+DOCTEST_MSVC_SUPPRESS_WARNING(5262) // implicit fall-through
+
+// defines for a leaner windows.h
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#define DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#define DOCTEST_UNDEF_NOMINMAX
+#endif
+
+// not sure what AfxWin.h is for - here I do what Catch does
+#ifdef __AFXDLL
+#include <AfxWin.h> // IWYU pragma: export
+#else
+#include <windows.h> // IWYU pragma: export
+#endif
+
+#ifdef DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
+#undef WIN32_LEAN_AND_MEAN
+#undef DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
+#endif
+#ifdef DOCTEST_UNDEF_NOMINMAX
+#undef NOMINMAX
+#undef DOCTEST_UNDEF_NOMINMAX
+#endif
+
+DOCTEST_CLANG_SUPPRESS_WARNING_POP
+DOCTEST_MSVC_SUPPRESS_WARNING_POP
+
+#endif // DOCTEST_PLATFORM_WINDOWS
+
+#endif // DOCTEST_PARTS_PRIVATE_EXT_WINDOWS
+
+#include <cstdio>
+#include <ostream>
+
+#ifdef DOCTEST_PLATFORM_WINDOWS
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -4741,6 +4679,12 @@ DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 #endif // platform
 #endif // DOCTEST_CONFIG_COLORS_WINDOWS && DOCTEST_CONFIG_COLORS_ANSI
 #endif // DOCTEST_CONFIG_COLORS_NONE
+
+// this is a fix for https://github.com/doctest/doctest/issues/348
+// https://mail.gnome.org/archives/xml/2012-January/msg00000.html
+#if !defined(HAVE_UNISTD_H) && !defined(STDOUT_FILENO)
+#define STDOUT_FILENO fileno(stdout)
+#endif // HAVE_UNISTD_H
 
 namespace doctest {
 
@@ -4848,6 +4792,34 @@ const ContextOptions *getContextOptions() {
 } // namespace doctest
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+#ifndef DOCTEST_PARTS_PRIVATE_FILTERS
+#define DOCTEST_PARTS_PRIVATE_FILTERS
+
+
+#include <vector>
+
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
+
+#ifndef DOCTEST_CONFIG_DISABLE
+
+namespace doctest {
+namespace detail {
+
+// matching of a string against a wildcard mask (case sensitivity configurable) taken from
+// https://www.codeproject.com/Articles/1088/Wildcard-string-compare-globbing
+int wildcmp(const char *str, const char *wild, bool caseSensitive);
+
+// checks if the name matches any of the filters (and can be configured what to do when empty)
+bool matchesAny(const char *name, const std::vector<String> &filters, bool matchEmpty, bool caseSensitive);
+
+} // namespace detail
+} // namespace doctest
+
+#endif // DOCTEST_CONFIG_DISABLE
+
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#endif // DOCTEST_PARTS_PRIVATE_FILTERS
 #ifndef DOCTEST_PARTS_PRIVATE_REPORTERS_COMMON
 #define DOCTEST_PARTS_PRIVATE_REPORTERS_COMMON
 
@@ -4878,13 +4850,9 @@ DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 #define DOCTEST_PARTS_PRIVATE_REPORTERS_CONSOLE
 
 
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
+#include <vector>
 
-#ifdef DOCTEST_CONFIG_NO_UNPREFIXED_OPTIONS
-#define DOCTEST_OPTIONS_PREFIX_DISPLAY DOCTEST_CONFIG_OPTIONS_PREFIX
-#else
-#define DOCTEST_OPTIONS_PREFIX_DISPLAY ""
-#endif
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
 
@@ -4978,6 +4946,8 @@ DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PRIVATE_REPORTERS_CONSOLE
 
+#include <iosfwd>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
@@ -5013,57 +4983,17 @@ struct DebugOutputWindowReporter : public ConsoleReporter {
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PRIVATE_REPORTERS_DEBUG_OUTPUT_WINDOW
-#ifndef DOCTEST_PARTS_PRIVATE_TEST_CASE
-#define DOCTEST_PARTS_PRIVATE_TEST_CASE
-
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
-
-#ifndef DOCTEST_CONFIG_DISABLE
-
-namespace doctest {
-namespace detail {
-
-// all the registered tests
-std::set<TestCase> &getRegisteredTests();
-
-} // namespace detail
-} // namespace doctest
-
-#endif // DOCTEST_CONFIG_DISABLE
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
-
-#endif // DOCTEST_PARTS_PRIVATE_TEST_CASE
-#ifndef DOCTEST_PARTS_PRIVATE_FILTERS
-#define DOCTEST_PARTS_PRIVATE_FILTERS
-
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
-
-#ifndef DOCTEST_CONFIG_DISABLE
-
-namespace doctest {
-namespace detail {
-
-// matching of a string against a wildcard mask (case sensitivity configurable) taken from
-// https://www.codeproject.com/Articles/1088/Wildcard-string-compare-globbing
-int wildcmp(const char *str, const char *wild, bool caseSensitive);
-
-// checks if the name matches any of the filters (and can be configured what to do when empty)
-bool matchesAny(const char *name, const std::vector<String> &filters, bool matchEmpty, bool caseSensitive);
-
-} // namespace detail
-} // namespace doctest
-
-#endif // DOCTEST_CONFIG_DISABLE
-
-DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
-
-#endif // DOCTEST_PARTS_PRIVATE_FILTERS
 #ifndef DOCTEST_PARTS_PRIVATE_SIGNALS
 #define DOCTEST_PARTS_PRIVATE_SIGNALS
 
+
+#if defined(DOCTEST_CONFIG_POSIX_SIGNALS) || defined(DOCTEST_CONFIG_WINDOWS_SEH)
+#ifndef DOCTEST_PLATFORM_WINDOWS
+#include <csignal>
+#endif
+#endif
+
+#include <string>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -5080,7 +5010,13 @@ struct FatalConditionHandler {
 };
 #else // DOCTEST_CONFIG_POSIX_SIGNALS || DOCTEST_CONFIG_WINDOWS_SEH
 
+void reportFatal(const std::string &message);
+
 #ifdef DOCTEST_PLATFORM_WINDOWS
+
+#ifndef DOCTEST_CDECL
+#define DOCTEST_CDECL __cdecl
+#endif
 
 struct SignalDefs {
     DWORD id;
@@ -5148,6 +5084,30 @@ struct FatalConditionHandler {
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PRIVATE_SIGNALS
+#ifndef DOCTEST_PARTS_PRIVATE_TEST_CASE
+#define DOCTEST_PARTS_PRIVATE_TEST_CASE
+
+
+#include <set>
+
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
+
+#ifndef DOCTEST_CONFIG_DISABLE
+
+namespace doctest {
+namespace detail {
+
+// all the registered tests
+std::set<TestCase> &getRegisteredTests();
+
+} // namespace detail
+} // namespace doctest
+
+#endif // DOCTEST_CONFIG_DISABLE
+
+DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#endif // DOCTEST_PARTS_PRIVATE_TEST_CASE
 
 // Fix for #1035
 #ifndef DOCTEST_PARTS_PRIVATE_REPORTERS_JUNIT
@@ -5156,6 +5116,14 @@ DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 #ifndef DOCTEST_PARTS_PRIVATE_XML
 #define DOCTEST_PARTS_PRIVATE_XML
 
+
+#include <sstream>
+#include <string>
+#include <vector>
+
+#ifndef DOCTEST_CONFIG_NO_INCLUDE_IOSTREAM
+#include <iostream>
+#endif
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -5440,6 +5408,11 @@ DOCTEST_REGISTER_REPORTER("xml", 0, XmlReporter);
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PRIVATE_REPORTERS_XML
+
+#include <algorithm>
+#include <climits>
+#include <cstring>
+#include <fstream>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -6135,6 +6108,8 @@ DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 #define DOCTEST_PARTS_PRIVATE_CONTEXT_SCOPE
 
 
+#include <vector>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
@@ -6150,6 +6125,8 @@ extern DOCTEST_THREAD_LOCAL std::vector<IContextScope *> g_infoContexts; // for 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
 #endif // DOCTEST_PARTS_PRIVATE_CONTEXT_SCOPE
+
+#include <sstream>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -6201,6 +6178,8 @@ DOCTEST_MSVC_SUPPRESS_WARNING_POP
 } // namespace doctest
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#include <cfloat>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -6271,6 +6250,15 @@ void ContextState::finalizeTestCaseData() {
 #endif // DOCTEST_CONFIG_DISABLE
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#include <cerrno>
+#include <fstream>
+#include <string>
+
+#ifdef DOCTEST_PLATFORM_MAC
+#include <sys/sysctl.h>
+#include <sys/types.h>
+#endif
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -6351,6 +6339,9 @@ bool isDebuggerActive() {
 #endif // DOCTEST_CONFIG_DISABLE
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#include <algorithm>
+#include <string>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -6440,6 +6431,8 @@ void throwException() {}
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <cctype>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 namespace doctest {
@@ -6450,7 +6443,7 @@ int wildcmp(const char *str, const char *wild, bool caseSensitive) {
     const char *mp = wild;
 
     while ((*str) && (*wild != '*')) {
-        if ((caseSensitive ? (*wild != *str) : (tolower(*wild) != tolower(*str))) && (*wild != '?')) {
+        if ((caseSensitive ? (*wild != *str) : (std::tolower(*wild) != std::tolower(*str))) && (*wild != '?')) {
             return 0;
         }
         wild++;
@@ -6464,7 +6457,7 @@ int wildcmp(const char *str, const char *wild, bool caseSensitive) {
             }
             mp = wild;
             cp = str + 1;
-        } else if ((caseSensitive ? (*wild == *str) : (tolower(*wild) == tolower(*str))) || (*wild == '?')) {
+        } else if ((caseSensitive ? (*wild == *str) : (std::tolower(*wild) == std::tolower(*str))) || (*wild == '?')) {
             wild++;
             str++;
         } else {
@@ -6505,6 +6498,14 @@ DOCTEST_MSVC_SUPPRESS_WARNING_POP
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <limits>
+
+#ifndef __BORLANDC__ // See: https://github.com/doctest/doctest/pull/37
+#include <cmath>
+#else
+#include <math.h>
+#endif
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 namespace doctest {
@@ -6531,7 +6532,7 @@ Approx &Approx::scale(double newScale) {
 bool operator==(double lhs, const Approx &rhs) {
     // Thanks to Richard Harris for his help refining this formula
     return std::fabs(lhs - rhs.m_value) <
-           rhs.m_epsilon * (rhs.m_scale + std::max<double>(std::fabs(lhs), std::fabs(rhs.m_value)));
+           rhs.m_epsilon * (rhs.m_scale + std::fmax(std::fabs(lhs), std::fabs(rhs.m_value)));
 }
 
 bool operator==(const Approx &lhs, double rhs) {
@@ -6586,6 +6587,8 @@ String toString(const Approx &in) {
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <cstring>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 namespace doctest {
@@ -6594,7 +6597,7 @@ Contains::Contains(const String &str)
     : string(str) {}
 
 bool Contains::checkWith(const String &other) const {
-    return strstr(other.c_str(), string.c_str()) != nullptr;
+    return std::strstr(other.c_str(), string.c_str()) != nullptr;
 }
 
 String toString(const Contains &in) {
@@ -6620,6 +6623,12 @@ bool operator!=(const Contains &lhs, const String &rhs) {
 } // namespace doctest
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#ifndef __BORLANDC__ // See: https://github.com/doctest/doctest/pull/37
+#include <cmath>
+#else
+#include <math.h>
+#endif
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -6655,6 +6664,9 @@ String toString(IsNaN<double long> in) {
 } // namespace doctest
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#include <algorithm>
+#include <cstring>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -6779,6 +6791,8 @@ void registerReporterImpl(const char *name, int priority, reporterCreatorFunc c,
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <ostream>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
@@ -6836,9 +6850,20 @@ void fulltext_log_assert_to_stream(std::ostream &s, const AssertData &rb) {
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <cmath>
+#include <cstring>
+#include <iomanip>
+#include <ostream>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
+
+#ifdef DOCTEST_CONFIG_NO_UNPREFIXED_OPTIONS
+#define DOCTEST_OPTIONS_PREFIX_DISPLAY DOCTEST_CONFIG_OPTIONS_PREFIX
+#else
+#define DOCTEST_OPTIONS_PREFIX_DISPLAY ""
+#endif
 
 namespace doctest {
 
@@ -6912,7 +6937,7 @@ void ConsoleReporter::logTestStart() {
         s << Color::Yellow << "DESCRIPTION: " << Color::None << tc->m_description << "\n";
     if (tc->m_test_suite && tc->m_test_suite[0] != '\0')
         s << Color::Yellow << "TEST SUITE: " << Color::None << tc->m_test_suite << "\n";
-    if (strncmp(tc->m_name, "  Scenario:", 11) != 0)
+    if (std::strncmp(tc->m_name, "  Scenario:", 11) != 0)
         s << Color::Yellow << "TEST CASE:  ";
     s << Color::None << tc->m_name << "\n";
 
@@ -7288,6 +7313,8 @@ void ConsoleReporter::test_case_skipped(const TestCaseData &) {}
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <sstream>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
@@ -7339,6 +7366,9 @@ DOCTEST_DEBUG_OUTPUT_REPORTER_OVERRIDE(test_case_skipped, const TestCaseData &, 
 #endif // DOCTEST_CONFIG_DISABLE
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+
+#include <iomanip>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
@@ -7586,6 +7616,8 @@ void JUnitReporter::log_contexts(std::ostringstream &s) {
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <cstring>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
@@ -7824,6 +7856,10 @@ void XmlReporter::test_case_skipped(const TestCaseData &in) {
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#if defined(DOCTEST_CONFIG_POSIX_SIGNALS) || defined(DOCTEST_CONFIG_WINDOWS_SEH)
+#include <csignal>
+#endif
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
@@ -7836,6 +7872,20 @@ void FatalConditionHandler::reset() {}
 void FatalConditionHandler::allocateAltStackMem() {}
 void FatalConditionHandler::freeAltStackMem() {}
 #else // DOCTEST_CONFIG_POSIX_SIGNALS || DOCTEST_CONFIG_WINDOWS_SEH
+
+void reportFatal(const std::string &message) {
+    g_cs->failure_flags |= TestCaseFailureReason::Crash;
+
+    DOCTEST_ITERATE_THROUGH_REPORTERS(test_case_exception, {message.c_str(), true});
+
+    for (size_t i = g_cs->traversal.unwindActiveSubcases(); i > 0; --i)
+        DOCTEST_ITERATE_THROUGH_REPORTERS(subcase_end, DOCTEST_EMPTY);
+    g_cs->finalizeTestCaseData();
+
+    DOCTEST_ITERATE_THROUGH_REPORTERS(test_case_end, *g_cs);
+
+    DOCTEST_ITERATE_THROUGH_REPORTERS(test_run_end, *g_cs);
+}
 
 #ifdef DOCTEST_PLATFORM_WINDOWS
 
@@ -8049,6 +8099,10 @@ char *FatalConditionHandler::altStackMem = nullptr;
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <cstring>
+#include <sstream>
+#include <vector>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 namespace doctest {
@@ -8089,7 +8143,7 @@ String tlssPop() {
 // case insensitive strcmp
 static int stricmp(const char *a, const char *b) {
     for (;; a++, b++) {
-        const int d = tolower(*a) - tolower(*b);
+        const int d = std::tolower(*a) - std::tolower(*b);
         if (d != 0 || !*a)
             return d;
     }
@@ -8150,7 +8204,7 @@ String::~String() {
 } // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
 
 String::String(const char *in)
-    : String(in, strlen(in)) {}
+    : String(in, std::strlen(in)) {}
 
 String::String(const char *in, size_type in_size) {
     memcpy(allocate(in_size), in, in_size);
@@ -8448,6 +8502,8 @@ String toString(long long unsigned in) {
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <cstring>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 namespace doctest {
@@ -8533,6 +8589,8 @@ Subcase::operator bool() const {
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#include <cstring>
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
@@ -8600,7 +8658,7 @@ bool TestCase::operator<(const TestCase &other) const noexcept {
     // this will be used only to differentiate between test cases - not relevant for sorting
     if (m_line != other.m_line)
         return m_line < other.m_line;
-    const int name_cmp = strcmp(m_name, other.m_name);
+    const int name_cmp = std::strcmp(m_name, other.m_name);
     if (name_cmp != 0)
         return name_cmp < 0;
     const int file_cmp = m_file.compare(other.m_file);
@@ -8655,6 +8713,10 @@ doctest::detail::TestSuite &getCurrentTestSuite() noexcept {
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
+#ifndef DOCTEST_PLATFORM_WINDOWS
+#include <sys/time.h>
+#endif
+
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 #ifndef DOCTEST_CONFIG_DISABLE
@@ -8663,11 +8725,11 @@ namespace doctest {
 namespace detail {
 
 #ifdef DOCTEST_CONFIG_GETCURRENTTICKS
-ticks_t getCurrentTicks() {
+uint64_t getCurrentTicks() {
     return DOCTEST_CONFIG_GETCURRENTTICKS();
 }
 #elif defined(DOCTEST_PLATFORM_WINDOWS)
-ticks_t getCurrentTicks() {
+uint64_t getCurrentTicks() {
     static LARGE_INTEGER hz = {{0}}, hzo = {{0}};
     if (!hz.QuadPart) {
         QueryPerformanceFrequency(&hz);
@@ -8678,10 +8740,10 @@ ticks_t getCurrentTicks() {
     return ((t.QuadPart - hzo.QuadPart) * LONGLONG(1000000)) / hz.QuadPart;
 }
 #else  // DOCTEST_PLATFORM_WINDOWS
-ticks_t getCurrentTicks() {
+uint64_t getCurrentTicks() {
     timeval t;
     gettimeofday(&t, nullptr);
-    return static_cast<ticks_t>(t.tv_sec) * 1000000 + static_cast<ticks_t>(t.tv_usec);
+    return static_cast<uint64_t>(t.tv_sec) * 1000000 + static_cast<uint64_t>(t.tv_usec);
 }
 #endif // DOCTEST_PLATFORM_WINDOWS
 
@@ -8707,7 +8769,6 @@ double Timer::getElapsedSeconds() const {
 #endif // DOCTEST_CONFIG_DISABLE
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
-
 
 #include <algorithm>
 
@@ -8817,6 +8878,9 @@ size_t acquireGeneratorDecisionIndex(size_t count) {
 #endif // DOCTEST_CONFIG_DISABLE
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
+
+#include <cstdint>
+#include <iomanip>
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
