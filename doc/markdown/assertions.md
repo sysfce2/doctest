@@ -204,8 +204,19 @@ REQUIRE(22.0/7 == doctest::Approx(3.141).epsilon(0.01)); // allow for a 1% error
 When dealing with very large or very small numbers it can be useful to specify a scale, which can be achieved by calling
 the `scale()` method on the `doctest::Approx` instance.
 
-`epsilon` is a relative tolerance and is expected to be in the `[0, 1)` range for the usual comparison formula. Values of
-`1.0` or greater are treated as “match anything” (100% tolerance or more).
+The default `scale()` is `1.0`. Comparisons use:
+
+`fabs(lhs - rhs) < epsilon * (scale + max(fabs(lhs), fabs(rhs)))`
+
+So with the default scale, even a small explicit `epsilon()` still allows a tolerance of at least
+`epsilon * 1.0` before the operand magnitudes add to the budget. For comparisons near zero where
+you want tolerance driven only by `epsilon` and the operand values, call `.scale(0.0)`:
+
+```c++
+CHECK_FALSE(1.0 == doctest::Approx(0.89).epsilon(0.1).scale(0.0));
+```
+
+See [issue #713](https://github.com/doctest/doctest/issues/713) for discussion.
 
 ## NaN checking
 
