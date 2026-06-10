@@ -2,7 +2,6 @@
 #define DOCTEST_PARTS_PUBLIC_EXCEPTIONS
 
 #include "doctest/parts/public/config.h"
-#include "doctest/parts/public/warnings.h"
 #include "doctest/parts/public/assert/type.h"
 
 DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
@@ -12,16 +11,14 @@ DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 namespace doctest {
 namespace detail {
 
-  struct DOCTEST_INTERFACE TestFailureException
-  {
-  };
+struct DOCTEST_INTERFACE TestFailureException {};
 
-  DOCTEST_INTERFACE bool checkIfShouldThrow(assertType::Enum at);
+DOCTEST_INTERFACE bool checkIfShouldThrow(assertType::Enum at);
 
 #ifndef DOCTEST_CONFIG_NO_EXCEPTIONS
-  DOCTEST_NORETURN
+DOCTEST_NORETURN
 #endif // DOCTEST_CONFIG_NO_EXCEPTIONS
-  DOCTEST_INTERFACE void throwException();
+DOCTEST_INTERFACE void throwException();
 
 } // namespace detail
 } // namespace doctest

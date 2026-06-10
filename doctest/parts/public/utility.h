@@ -2,24 +2,18 @@
 #define DOCTEST_PARTS_PUBLIC_UTILITY
 
 #include "doctest/parts/public/config.h"
-#include "doctest/parts/public/warnings.h"
 
 DOCTEST_SUPPRESS_PUBLIC_WARNINGS_PUSH
 
-DOCTEST_CLANG_SUPPRESS_WARNING_PUSH
-DOCTEST_CLANG_SUPPRESS_WARNING("-Wunused-function")
-DOCTEST_CLANG_SUPPRESS_WARNING("-Wunused-macros")
+#define DOCTEST_DECLARE_INTERFACE(name)                                                                                \
+    virtual ~name();                                                                                                   \
+    name() = default;                                                                                                  \
+    name(const name &) = delete;                                                                                       \
+    name(name &&) = delete;                                                                                            \
+    name &operator=(const name &) = delete;                                                                            \
+    name &operator=(name &&) = delete;
 
-#define DOCTEST_DECLARE_INTERFACE(name)                                                            \
-    virtual ~name();                                                                               \
-    name() = default;                                                                              \
-    name(const name&) = delete;                                                                    \
-    name(name&&) = delete;                                                                         \
-    name& operator=(const name&) = delete;                                                         \
-    name& operator=(name&&) = delete;
-
-#define DOCTEST_DEFINE_INTERFACE(name)                                                             \
-    name::~name() = default;
+#define DOCTEST_DEFINE_INTERFACE(name) name::~name() = default;
 
 // internal macros for string concatenation and anonymous variable name generation
 #define DOCTEST_CAT_IMPL(s1, s2) s1##s2
@@ -31,21 +25,25 @@ DOCTEST_CLANG_SUPPRESS_WARNING("-Wunused-macros")
 #endif // __COUNTER__
 
 #ifndef DOCTEST_CONFIG_ASSERTION_PARAMETERS_BY_VALUE
-#define DOCTEST_REF_WRAP(x) x&
+#define DOCTEST_REF_WRAP(x) x &
 #else // DOCTEST_CONFIG_ASSERTION_PARAMETERS_BY_VALUE
 #define DOCTEST_REF_WRAP(x) x
 #endif // DOCTEST_CONFIG_ASSERTION_PARAMETERS_BY_VALUE
 
-namespace doctest { namespace detail {
-    static DOCTEST_CONSTEXPR int consume(const int*, int) noexcept { return 0; }
-}}
-
-#define DOCTEST_GLOBAL_NO_WARNINGS(var, ...)                                                         \
-    DOCTEST_CLANG_SUPPRESS_WARNING_WITH_PUSH("-Wglobal-constructors")                                \
-    static const int var = doctest::detail::consume(&var, __VA_ARGS__);                              \
-    DOCTEST_CLANG_SUPPRESS_WARNING_POP
-
+namespace doctest {
+namespace detail {
+DOCTEST_CLANG_SUPPRESS_WARNING_WITH_PUSH("-Wunused-function")
+static DOCTEST_CONSTEXPR int consume(const int *, int) noexcept {
+    return 0;
+}
 DOCTEST_CLANG_SUPPRESS_WARNING_POP
+} // namespace detail
+} // namespace doctest
+
+#define DOCTEST_GLOBAL_NO_WARNINGS(var, ...)                                                                           \
+    DOCTEST_CLANG_SUPPRESS_WARNING_WITH_PUSH("-Wglobal-constructors")                                                  \
+    static const int var = doctest::detail::consume(&var, __VA_ARGS__);                                                \
+    DOCTEST_CLANG_SUPPRESS_WARNING_POP
 
 DOCTEST_SUPPRESS_PUBLIC_WARNINGS_POP
 

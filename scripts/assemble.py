@@ -24,7 +24,7 @@ from textwrap import dedent
 TEMPLATE = string.Template(
     dedent(
         """\
-  // ============================================================= lgtm [cpp/missing-header-guard]
+  // =============================================================
   // == DO NOT MODIFY THIS FILE BY HAND - IT IS AUTO GENERATED! ==
   // =============================================================
   $headers
@@ -35,11 +35,7 @@ TEMPLATE = string.Template(
   #define DOCTEST_LIBRARY_IMPLEMENTATION
   DOCTEST_CLANG_SUPPRESS_WARNING_POP
 
-  DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
-
   $sources
-
-  DOCTEST_SUPPRESS_PRIVATE_WARNINGS_POP
 
   #endif // defined(DOCTEST_CONFIG_IMPLEMENT) && !defined(DOCTEST_LIBRARY_IMPLEMENTATION)
 """
@@ -113,6 +109,8 @@ def main(args):
             yield f'#line 1 "{file.resolve()}"'
 
         for idx, line in enumerate(content.splitlines(keepends=False), start=1):
+            if line.startswith("// IWYU pragma: "):
+                continue
             header = extract_header(line)
             if (header is not None) and ((root / header) in headers):
                 yield from process_file(root / header, visited=visited, headers=headers)
