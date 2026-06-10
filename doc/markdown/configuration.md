@@ -111,6 +111,9 @@ This applies to **`char*`** (not necessarily every `const char*` expression in a
 
 Some reporter and decomposition edge cases with this option enabled are tracked in [issue #707](https://github.com/doctest/doctest/issues/707).
 
+Null pointers and mixed comparisons between string literals and `char*` buffers can behave differently than
+in the default mode; see [issue #707](https://github.com/doctest/doctest/issues/707) for reports and edge cases.
+
 This should be defined globally.
 
 ### **`DOCTEST_CONFIG_REQUIRE_STRINGIFICATION_FOR_ALL_USED_TYPES`**
