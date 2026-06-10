@@ -260,6 +260,9 @@ Or tune `epsilon()` together with `scale(0)` so `epsilon * max(|lhs|, |value|)` 
 CHECK(lhs == doctest::Approx(rhs).epsilon(1e-12).scale(0));
 ```
 
+`epsilon` is a relative tolerance and is expected to be in the `[0, 1)` range for the usual comparison formula. Values of
+`1.0` or greater are treated as “match anything” (100% tolerance or more).
+
 ## NaN checking
 
 Two NaN floating point numbers do not compare equal to each other. This makes it quite inconvenient to check for NaN

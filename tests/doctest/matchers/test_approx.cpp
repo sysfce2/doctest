@@ -171,6 +171,7 @@ TEST_CASE("Comparison with finite floating-point values" * doctest::expected_fai
 
     SUBCASE("Matcher focused around 0 with an error of 100% and no scaling") {
         const auto m = Approx(0.0).epsilon(1.0).scale(0);
+        CAPTURE(bounds::determine(m)); // [lowest, max]
 
         CHECK(-epsilon == m);
         CHECK(     0.0 == m);
