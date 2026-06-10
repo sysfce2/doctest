@@ -3787,7 +3787,9 @@ DOCTEST_MAKE_STD_HEADERS_CLEAN_FROM_WARNINGS_ON_WALL_BEGIN
 #include <unordered_set>
 #include <exception>
 #include <stdexcept>
+#if defined(DOCTEST_CONFIG_POSIX_SIGNALS) || defined(DOCTEST_CONFIG_WINDOWS_SEH)
 #include <csignal>
+#endif // DOCTEST_CONFIG_POSIX_SIGNALS
 #include <cfloat>
 #include <cctype>
 #include <cstdint>
@@ -5187,8 +5189,10 @@ void Context::parseArgs(int argc, const char *const *argv, bool withDefaults) {
     if (parseIntOption(argc, argv, DOCTEST_CONFIG_OPTIONS_PREFIX name "=", option_bool, intRes) ||                     \
         parseIntOption(argc, argv, DOCTEST_CONFIG_OPTIONS_PREFIX sname "=", option_bool, intRes))                      \
         p->var = static_cast<bool>(intRes);                                                                            \
-    else if (parseFlag(argc, argv, DOCTEST_CONFIG_OPTIONS_PREFIX name) ||                                              \
-             parseFlag(argc, argv, DOCTEST_CONFIG_OPTIONS_PREFIX sname))                                               \
+    else if (                                                                                                          \
+        parseFlag(argc, argv, DOCTEST_CONFIG_OPTIONS_PREFIX name) ||                                                   \
+        parseFlag(argc, argv, DOCTEST_CONFIG_OPTIONS_PREFIX sname)                                                     \
+    )                                                                                                                  \
         p->var = true;                                                                                                 \
     else if (withDefaults)                                                                                             \
     p->var = default
@@ -8274,10 +8278,12 @@ Subcase::Subcase(const String &name, const char *file, int line)
             g_cs->currentSubcaseDepth++;
             m_entered = true;
             DOCTEST_ITERATE_THROUGH_REPORTERS(subcase_start, m_signature);
-        } else if (g_cs->nextSubcaseStack.size() <= g_cs->currentSubcaseDepth &&
-                   g_cs->fullyTraversedSubcases.find(
-                       hash(hash(g_cs->subcaseStack, g_cs->currentSubcaseDepth), hash(m_signature))
-                   ) == g_cs->fullyTraversedSubcases.end()) {
+        } else if (
+            g_cs->nextSubcaseStack.size() <= g_cs->currentSubcaseDepth &&
+            g_cs->fullyTraversedSubcases.find(
+                hash(hash(g_cs->subcaseStack, g_cs->currentSubcaseDepth), hash(m_signature))
+            ) == g_cs->fullyTraversedSubcases.end()
+        ) {
             if (checkFilters()) {
                 return;
             }
