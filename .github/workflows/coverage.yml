@@ -35,10 +35,12 @@ jobs:
         run: sudo apt-get install -y ninja-build lcov
 
       - name: Generate
-        run: cmake -B build -S . -G Ninja -D CMAKE_CXX_FLAGS="-fprofile-arcs -ftest-coverage"
+        run: cmake -B build -S . -G Ninja -D CMAKE_CXX_FLAGS="-fprofile-arcs -ftest-coverage" -D DOCTEST_INTERNAL_COVERAGE=ON
 
       - name: Build
-        run: cmake --build build
+        run: |
+          python scripts/assemble.py --remap
+          cmake --build build
 
       - name: Test
         run: ctest --test-dir build --no-tests=error
@@ -46,11 +48,13 @@ jobs:
       - name: LCOV
         run: |
           mkdir coverage
-          lcov -c -d build/ -o coverage/lcov.info --include "*doctest/parts*"
+          lcov -c -d build/ -o coverage/lcov.info --include "*/doctest/parts/*"
 
       - name: Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/lcov.info
+          disable_search: true
+          plugins: noop
           fail_ci_if_error: true

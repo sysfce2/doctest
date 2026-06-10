@@ -226,6 +226,8 @@ namespace detail {
     }
 
     String::size_type String::rfind(char ch, size_type pos) const {
+        if (size() == 0) { return npos; }
+
         const char* begin = c_str();
         const char* it = begin + std::min(pos, size() - 1);
         for (; it >= begin && *it != ch; it--) { }
@@ -288,21 +290,21 @@ String toString(std::nullptr_t) { return "nullptr"; }
 
 String toString(bool in) { return in ? "true" : "false"; }
 
-String toString(float in) { return toStreamLit(in); }
-String toString(double in) { return toStreamLit(in); }
-String toString(double long in) { return toStreamLit(in); }
+String toString(float in) { return detail::toStreamLit(in); }
+String toString(double in) { return detail::toStreamLit(in); }
+String toString(double long in) { return detail::toStreamLit(in); }
 
-String toString(char in) { return toStreamLit(static_cast<signed>(in)); }
-String toString(char signed in) { return toStreamLit(static_cast<signed>(in)); }
-String toString(char unsigned in) { return toStreamLit(static_cast<unsigned>(in)); }
-String toString(short in) { return toStreamLit(in); }
-String toString(short unsigned in) { return toStreamLit(in); }
-String toString(signed in) { return toStreamLit(in); }
-String toString(unsigned in) { return toStreamLit(in); }
-String toString(long in) { return toStreamLit(in); }
-String toString(long unsigned in) { return toStreamLit(in); }
-String toString(long long in) { return toStreamLit(in); }
-String toString(long long unsigned in) { return toStreamLit(in); }
+String toString(char in) { return detail::toStreamLit(static_cast<signed>(in)); }
+String toString(char signed in) { return detail::toStreamLit(static_cast<signed>(in)); }
+String toString(char unsigned in) { return detail::toStreamLit(static_cast<unsigned>(in)); }
+String toString(short in) { return detail::toStreamLit(in); }
+String toString(short unsigned in) { return detail::toStreamLit(in); }
+String toString(signed in) { return detail::toStreamLit(in); }
+String toString(unsigned in) { return detail::toStreamLit(in); }
+String toString(long in) { return detail::toStreamLit(in); }
+String toString(long unsigned in) { return detail::toStreamLit(in); }
+String toString(long long in) { return detail::toStreamLit(in); }
+String toString(long long unsigned in) { return detail::toStreamLit(in); }
 
 } // namespace doctest
 

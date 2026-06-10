@@ -22,6 +22,9 @@ option(DOCTEST_WITH_MAIN_IN_STATIC_LIB  "Build a static lib (cmake target) with 
 option(DOCTEST_NO_INSTALL  "Skip the installation process" OFF)
 option(DOCTEST_USE_STD_HEADERS  "Use std headers" OFF)
 
+option(DOCTEST_INTERNAL_WERROR "Enables -Werror" OFF)
+option(DOCTEST_INTERNAL_COVERAGE "Set for running coverage" OFF)
+
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
@@ -64,7 +67,7 @@ endif()
 
 if(${DOCTEST_WITH_MAIN_IN_STATIC_LIB})
     add_library(
-        ${PROJECT_NAME}_with_main STATIC EXCLUDE_FROM_ALL
+        ${PROJECT_NAME}_with_main STATIC
         ${doctest_parts_folder}/private/assert/data.cpp
         ${doctest_parts_folder}/private/assert/expression.cpp
         ${doctest_parts_folder}/private/assert/handler.cpp
@@ -75,20 +78,28 @@ if(${DOCTEST_WITH_MAIN_IN_STATIC_LIB})
         ${doctest_parts_folder}/private/context.cpp
         ${doctest_parts_folder}/private/context/options.cpp
         ${doctest_parts_folder}/private/context_scope.cpp
+        ${doctest_parts_folder}/private/context_state.cpp
         ${doctest_parts_folder}/private/debugger.cpp
         ${doctest_parts_folder}/private/exception_translator.cpp
         ${doctest_parts_folder}/private/exceptions.cpp
+        ${doctest_parts_folder}/private/filters.cpp
         ${doctest_parts_folder}/private/main.cpp
         ${doctest_parts_folder}/private/matchers/approx.cpp
         ${doctest_parts_folder}/private/matchers/contains.cpp
         ${doctest_parts_folder}/private/matchers/is_nan.cpp
         ${doctest_parts_folder}/private/path.cpp
         ${doctest_parts_folder}/private/reporter.cpp
-        ${doctest_parts_folder}/private/reporters.cpp
+        ${doctest_parts_folder}/private/reporters/common.cpp
+        ${doctest_parts_folder}/private/reporters/console.cpp
+        ${doctest_parts_folder}/private/reporters/debug_output_window.cpp
+        ${doctest_parts_folder}/private/reporters/junit.cpp
+        ${doctest_parts_folder}/private/reporters/xml.cpp
+        ${doctest_parts_folder}/private/signals.cpp
         ${doctest_parts_folder}/private/string.cpp
         ${doctest_parts_folder}/private/subcase.cpp
         ${doctest_parts_folder}/private/test_case.cpp
         ${doctest_parts_folder}/private/test_suite.cpp
+        ${doctest_parts_folder}/private/timer.cpp
         ${doctest_parts_folder}/private/xml.cpp
     )
     add_library(${PROJECT_NAME}::${PROJECT_NAME}_with_main ALIAS ${PROJECT_NAME}_with_main)
@@ -107,6 +118,7 @@ if(MAIN_PROJECT AND DOCTEST_WITH_TESTS)
     add_subdirectory(examples/combining_the_same_tests_built_differently_in_multiple_shared_objects)
     add_subdirectory(scripts/playground)
     add_subdirectory(examples/mpi)
+    add_subdirectory(tests)
 endif()
 
 set(DOCTEST_CMAKE_HELPER "${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake/doctest.cmake" CACHE PATH "Absolute path to to doctest helper file. `include(${DOCTEST_CMAKE_HELPER})`")

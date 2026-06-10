@@ -1,14 +1,14 @@
 #include "doctest/parts/private/prelude.h"
 #include "doctest/parts/private/context_state.h"
 #include "doctest/parts/private/filters.h"
+#include "doctest/parts/private/reporter.h"
 
 DOCTEST_SUPPRESS_PRIVATE_WARNINGS_PUSH
 
 namespace doctest {
 
 #ifndef DOCTEST_CONFIG_DISABLE
-namespace {
-    using namespace detail;
+namespace detail {
 
     DOCTEST_NO_SANITIZE_INTEGER
     unsigned long long hash(unsigned long long a, unsigned long long b) {
@@ -45,7 +45,7 @@ namespace {
         }
         return running;
     }
-} // namespace
+} // namespace detail
 #endif // DOCTEST_CONFIG_DISABLE
 
     bool SubcaseSignature::operator==(const SubcaseSignature& other) const {
