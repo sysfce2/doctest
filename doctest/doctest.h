@@ -4629,9 +4629,11 @@ DOCTEST_MSVC_SUPPRESS_WARNING(5105) // macro producing 'defined' has undefined b
 DOCTEST_MSVC_SUPPRESS_WARNING(5262) // implicit fall-through
 
 // defines for a leaner windows.h
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#define DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
+#if 0
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #define DOCTEST_UNDEF_WIN32_LEAN_AND_MEAN
+    #endif
 #endif
 #ifndef NOMINMAX
 #define NOMINMAX
