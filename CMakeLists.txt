@@ -33,24 +33,9 @@ set(doctest_parts_folder "${CMAKE_CURRENT_SOURCE_DIR}/doctest/parts")
 set(doctest_folder "${CMAKE_CURRENT_SOURCE_DIR}/") # in order to have the mpi extension files, not included into the doctest.h single header
 
 if(MAIN_PROJECT)
-    # use a special hidden version of the header which directly includes the 2 parts - proper reporting of file/line locations during dev
     target_include_directories(${PROJECT_NAME} INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/scripts/development_only/>
         $<BUILD_INTERFACE:${doctest_parts_folder}>
         $<BUILD_INTERFACE:${doctest_folder}>)
-
-    # add a custom target that assembles the single header when any of the parts are touched
-    find_package(Python3 COMPONENTS Interpreter REQUIRED)
-
-    add_custom_command(
-        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/doctest/doctest.h
-        DEPENDS
-            ${doctest_parts_folder}/doctest_fwd.h
-            ${doctest_parts_folder}/doctest.cpp
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/scripts/assemble.py
-        COMMENT "assembling the single header")
-
-    add_custom_target(assemble_single_header ALL DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/doctest/doctest.h)
 else()
     target_include_directories(${PROJECT_NAME} INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>)
 endif()
@@ -78,7 +63,34 @@ endif()
 ################################################################################
 
 if(${DOCTEST_WITH_MAIN_IN_STATIC_LIB})
-    add_library(${PROJECT_NAME}_with_main STATIC EXCLUDE_FROM_ALL ${doctest_parts_folder}/doctest.cpp)
+    add_library(
+        ${PROJECT_NAME}_with_main STATIC EXCLUDE_FROM_ALL
+        ${doctest_parts_folder}/private/assert/data.cpp
+        ${doctest_parts_folder}/private/assert/expression.cpp
+        ${doctest_parts_folder}/private/assert/handler.cpp
+        ${doctest_parts_folder}/private/assert/message.cpp
+        ${doctest_parts_folder}/private/assert/result.cpp
+        ${doctest_parts_folder}/private/assert/type.cpp
+        ${doctest_parts_folder}/private/color.cpp
+        ${doctest_parts_folder}/private/context.cpp
+        ${doctest_parts_folder}/private/context/options.cpp
+        ${doctest_parts_folder}/private/context_scope.cpp
+        ${doctest_parts_folder}/private/debugger.cpp
+        ${doctest_parts_folder}/private/exception_translator.cpp
+        ${doctest_parts_folder}/private/exceptions.cpp
+        ${doctest_parts_folder}/private/main.cpp
+        ${doctest_parts_folder}/private/matchers/approx.cpp
+        ${doctest_parts_folder}/private/matchers/contains.cpp
+        ${doctest_parts_folder}/private/matchers/is_nan.cpp
+        ${doctest_parts_folder}/private/path.cpp
+        ${doctest_parts_folder}/private/reporter.cpp
+        ${doctest_parts_folder}/private/reporters.cpp
+        ${doctest_parts_folder}/private/string.cpp
+        ${doctest_parts_folder}/private/subcase.cpp
+        ${doctest_parts_folder}/private/test_case.cpp
+        ${doctest_parts_folder}/private/test_suite.cpp
+        ${doctest_parts_folder}/private/xml.cpp
+    )
     add_library(${PROJECT_NAME}::${PROJECT_NAME}_with_main ALIAS ${PROJECT_NAME}_with_main)
     target_compile_definitions(${PROJECT_NAME}_with_main PRIVATE
         DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN)

@@ -1,6 +1,5 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python3
 
-import os
 import fileinput
 
 # the version of the release
@@ -16,7 +15,7 @@ version_patch = str(getVersionTuple(version)[2])
 # update version in the header file
 print("updating the version in the header file")
 doctest_contents = ""
-for line in fileinput.input(["../doctest/parts/version.h"]):
+for line in fileinput.input(["../doctest/parts/public/version.h"]):
     if line.startswith("#define DOCTEST_VERSION_MAJOR "):
         doctest_contents += "#define DOCTEST_VERSION_MAJOR " + version_major + "\n"
     elif line.startswith("#define DOCTEST_VERSION_MINOR "):
@@ -26,7 +25,7 @@ for line in fileinput.input(["../doctest/parts/version.h"]):
     else:
         doctest_contents += line
 
-readme = open("../doctest/parts/version.h", "w")
+readme = open("../doctest/parts/public/version.h", "w", encoding="utf-8", newline="\n")
 readme.write(doctest_contents)
 readme.close()
 
@@ -39,6 +38,6 @@ for line in fileinput.input(["../meson.build"]):
     else:
         meson_contents += line
 
-meson = open("../meson.build", "w")
+meson = open("../meson.build", "w", encoding="utf-8", newline="\n")
 meson.write(meson_contents)
 meson.close()
