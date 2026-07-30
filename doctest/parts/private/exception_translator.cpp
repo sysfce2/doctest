@@ -39,10 +39,10 @@ String translateActiveException() noexcept {
         return what ? what : "";
     } catch (std::string &msg) {
         return msg.c_str();
-    } catch (std::nullptr_t) {
-        return "nullptr";
     } catch (const char *msg) {
-        return msg ? msg : "null";
+        return msg ? msg : "(nullptr)";
+    } catch (std::nullptr_t) {
+        return "(nullptr)";
     } catch (...) {
         return "unknown exception";
     }
