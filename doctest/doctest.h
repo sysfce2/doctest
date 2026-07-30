@@ -8577,7 +8577,8 @@ String escapeAssertFailureDecomp(const String &in) {
             break;
         default:
             if (c >= 32 && c < 127) {
-                out += static_cast<char>(c);
+                char buf[2] = {c, 0};
+                out += buf;
             } else {
                 char buf[5] = {'\\', 'x', 0, 0, 0};
                 std::snprintf(buf + 2, sizeof(buf) - 2, "%02x", c);
