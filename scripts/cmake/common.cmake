@@ -176,6 +176,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0)
         add_compiler_flags(-Wcast-align=strict)
     endif()
+
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 17.0)
+        add_compiler_flags(-Wstrict-overflow=5)
+    endif()
 endif()
 
 # necessary for some older compilers which don't default to C++11
