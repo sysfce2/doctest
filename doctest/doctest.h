@@ -8633,7 +8633,7 @@ String escapeAssertFailureDecomp(const String &in) {
             break;
         default:
             if (c >= 32 && c < 127) {
-                char buf[2] = {c, 0};
+                char buf[2] = {char(c), 0};
                 out += buf;
             } else {
                 char buf[5] = {'\\', 'x', 0, 0, 0};
