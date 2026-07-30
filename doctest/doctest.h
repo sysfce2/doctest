@@ -6462,10 +6462,10 @@ String translateActiveException() noexcept {
         return what ? what : "";
     } catch (std::string &msg) {
         return msg.c_str();
-    } catch (std::nullptr_t) {
-        return "(nullptr)";
     } catch (const char *msg) {
         return msg ? msg : "(nullptr)";
+    } catch (std::nullptr_t) {
+        return "(nullptr)";
     } catch (...) {
         return "unknown exception";
     }
@@ -8320,7 +8320,7 @@ String::~String() {
 } // NOLINT(clang-analyzer-cplusplus.NewDeleteLeaks)
 
 String::String(const char *in)
-    : String(in, in? std::strlen(in) : 0) {}
+    : String(in, in ? std::strlen(in) : 0) {}
 
 String::String(const char *in, size_type in_size) {
     memcpy(allocate(in_size), in, in_size);
@@ -8611,42 +8611,6 @@ String toString(long long in) {
 String toString(long long unsigned in) {
     return detail::toStreamLit(in);
 }
-
-namespace detail {
-
-String escapeAssertFailureDecomp(const String &in) {
-    String out;
-    for (String::size_type i = 0; i < in.size(); ++i) {
-        const unsigned char c = static_cast<unsigned char>(in[i]);
-        switch (c) {
-        case '\n':
-            out += "\\n";
-            break;
-        case '\r':
-            out += "\\r";
-            break;
-        case '\t':
-            out += "\\t";
-            break;
-        case '\\':
-            out += "\\\\";
-            break;
-        default:
-            if (c >= 32 && c < 127) {
-                char buf[2] = {char(c), 0};
-                out += buf;
-            } else {
-                char buf[5] = {'\\', 'x', 0, 0, 0};
-                std::snprintf(buf + 2, sizeof(buf) - 2, "%02x", c);
-                out += buf;
-            }
-            break;
-        }
-    }
-    return out;
-}
-
-} // namespace detail
 
 // NOLINTEND(cppcoreguidelines-pro-type-union-access)
 
